@@ -169,56 +169,41 @@ class ARCubeView: ARView {
         arView.scene.addAnchor(cameraAnchor)
         
         arView.addGestureRecognizer(UIPanGestureRecognizer(target: self, action: #selector(handlePan(sender:))))
-        let rotationInRadians = 0.01
-        var totalRotation = 0.0
-//        let x1 = self.cubeState.rotationX / Float(Double.pi / 2)
-//        let nearest_increment : Float = round(x1) * Float(Double.pi / 2)
-//        self.cubeState.rotationX = self.cubeState.rotationX + (Float(nearest_increment) - self.cubeState.rotationX) * 0.1
+
         self.cubeUpdate = scene.subscribe(to: SceneEvents.Update.self) { event in
             sceneEntity.transform.rotation = self.cubeState.quaternionRotation
-
-            
-
-            //totalRotation += rotationInRadians
-            //nearest_increment = 0
-            //@ 10 degrees
-            //current_angle - nearest_increment
-            
-            //10 * (Double.pi / 180)
-            //rotationInRadians can almost be thought of as the velocity
-            //self.cubeState.rotationX
-            
-            //if totalRotation < Double.pi/2 {
-            //self.cubeState.quaternionRotation *= simd_quatf(angle: Float(rotationInRadians), axis: self.cubeState.upVector)
-            //}
 
             if self.cubeState.panningState == .ended {
                 //Simply put when panning ends we want to start gravitating toward the nearest 90 degree increment
                 var xAngleInDegrees = self.cubeState.rotationX * Float(180/Double.pi)
+                var yAngleInDegrees = self.cubeState.rotationY * Float(180/Double.pi)
                 let x1 = xAngleInDegrees / Float(90)
-                let nearest_increment_in_degrees : Float = round(x1) * Float(90)
+                let nearest_x_increment_in_degrees : Float = round(x1) * Float(90)
+                
+                let y1 = yAngleInDegrees / Float(90)
+                let nearest_y_increment_in_degrees : Float = round(y1) * Float(90)
 
-                if !self.nearestIncrementPrinted {
-                    print("nearest_increment: \(nearest_increment_in_degrees)")
-                    print("xAngleInDegrees: \(xAngleInDegrees)")
-                    print("distance to nearest increment: \(nearest_increment_in_degrees - xAngleInDegrees)")
-                    print("self.cubeState.rotationX: \(self.cubeState.rotationX)")
-                }
+//                if !self.nearestIncrementPrinted {
+//                    print("nearest_increment: \(nearest_increment_in_degrees)")
+//                    print("xAngleInDegrees: \(xAngleInDegrees)")
+//                    print("distance to nearest increment: \(nearest_increment_in_degrees - xAngleInDegrees)")
+//                    print("self.cubeState.rotationX: \(self.cubeState.rotationX)")
+//                }
 
                 if round(abs(xAngleInDegrees)) > 1 {
                     // We want to know the distance between the nearest increment of 90 degrees and whatever the current angle is
                     
                     // We get 10% of that so that the amount of change decreases over time.
-                    let delta = (nearest_increment_in_degrees - xAngleInDegrees) * 0.15
+                    let xDelta = (nearest_x_increment_in_degrees - xAngleInDegrees) * 0.15
                     
                     // We want to take whatever the current xAngle is in degrees and then add the delta to it.
-                    xAngleInDegrees = round(xAngleInDegrees) + delta
+                    xAngleInDegrees = round(xAngleInDegrees) + xDelta
                     
                     //We want to add the current delta to rotationX in radians
-                    self.cubeState.rotationX += delta * Float(Double.pi / 180)
+                    self.cubeState.rotationX += xDelta * Float(Double.pi / 180)
 
                     //We only want to rotate our quaternion by the delta here (in radians).
-                    self.cubeState.quaternionRotation *= simd_quatf(angle: delta * Float(Double.pi / 180), axis: self.cubeState.upVector)
+                    self.cubeState.quaternionRotation *= simd_quatf(angle: xDelta * Float(Double.pi / 180), axis: self.cubeState.upVector)
                     
                     //This code works, change is a constant 1 though
 //                    xAngleInDegrees = round(xAngleInDegrees) - 1
@@ -226,8 +211,15 @@ class ARCubeView: ARView {
 //print("xAngleInDegrees: \(round(xAngleInDegrees))")
 //                    self.cubeState.quaternionRotation *= simd_quatf(angle: -1 * Float(Double.pi / 180), axis: self.cubeState.upVector)
                 }
+
+                if round(abs(yAngleInDegrees)) > 1 {
+                    let yDelta = (nearest_y_increment_in_degrees - yAngleInDegrees) * 0.15
+                    yAngleInDegrees = round(yAngleInDegrees) + yDelta
+                    self.cubeState.rotationY += yDelta * Float(Double.pi / 180)
+                    self.cubeState.quaternionRotation *= simd_quatf(angle: yDelta * Float(Double.pi / 180), axis: self.cubeState.rightVector)
+                }
                 
-                self.nearestIncrementPrinted = true
+                //self.nearestIncrementPrinted = true
             }
             
         }
@@ -236,32 +228,20 @@ class ARCubeView: ARView {
     @objc func handlePan(sender:UIPanGestureRecognizer){
         let v = sender.velocity(in: arView)
         let t = sender.translation(in: arView)
-        self.nearestIncrementPrinted = false
+        //self.nearestIncrementPrinted = false
         if abs(t.x) > abs(t.y) {
             self.cubeState.velocityX = Float(v.x) * 0.0001
             self.cubeState.rotationX += Float(v.x) * 0.0001
-            print("rotation in degrees: \(self.cubeState.rotationX * Float(180 / Double.pi))")
-            
             self.cubeState.quaternionRotation *= simd_quatf(angle: self.cubeState.velocityX, axis: self.cubeState.upVector)
-            self.cubeState.upVector = whatIsUp(orientation: self.cubeState.quaternionRotation)
-            self.cubeState.rightVector = whatIsRight(orientation: self.cubeState.quaternionRotation)
-
         }
         else {
-            self.cubeState.rotationY = Float(v.y) * 0.0001
-            self.cubeState.quaternionRotation *= simd_quatf(angle: self.cubeState.rotationY, axis: self.cubeState.rightVector)
+            self.cubeState.velocityY = Float(v.y) * 0.0001
+            self.cubeState.rotationY += Float(v.y) * 0.0001
+            self.cubeState.quaternionRotation *= simd_quatf(angle: self.cubeState.velocityY, axis: self.cubeState.rightVector)
         }
-        //print("panning self.cubeState.rotationX: \(self.cubeState.rotationX)")
-        if sender.state == .ended {
-//            print("self.cubeState.rotationX: \(self.cubeState.rotationX)")
-//            self.cubeState.upVector = whatIsUp(orientation: self.cubeState.quaternionRotation)
-//            self.cubeState.rightVector = whatIsRight(orientation: self.cubeState.quaternionRotation)
-//            self.cubeState.velocityX = Float(v.x)
-//            self.cubeState.velocityY = Float(v.y)
-            //print("up: \(self.cubeState.upVector)")
-            //print("right: \(self.cubeState.rightVector)")
-        }
-        
+
+        self.cubeState.upVector = whatIsUp(orientation: self.cubeState.quaternionRotation)
+        self.cubeState.rightVector = whatIsRight(orientation: self.cubeState.quaternionRotation)        
         self.cubeState.panningState = sender.state
     }
 }
