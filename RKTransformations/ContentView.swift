@@ -9,35 +9,28 @@ import SwiftUI
 import RealityKit
 
 struct ContentView : View {
+    @State private var cubeState = CubeState()
     var body: some View {
-        ARViewContainer().edgesIgnoringSafeArea(.all)
+        ARViewContainer(cubeState).edgesIgnoringSafeArea(.all)
     }
 }
 
 struct ARViewContainer: UIViewRepresentable {
-    
+    private var cubeState: CubeState
+
+    public init(_ cubeState: CubeState){
+        self.cubeState = cubeState
+    }
+
     func makeUIView(context: Context) -> ARView {
-        
-        let arView = ARView(frame: .zero)
-
-        // Create a cube model
-        let mesh = MeshResource.generateBox(size: 0.1, cornerRadius: 0.005)
-        let material = SimpleMaterial(color: .gray, roughness: 0.15, isMetallic: true)
-        let model = ModelEntity(mesh: mesh, materials: [material])
-        model.transform.translation.y = 0.05
-
-        // Create horizontal plane anchor for the content
-        let anchor = AnchorEntity(.plane(.horizontal, classification: .any, minimumBounds: SIMD2<Float>(0.2, 0.2)))
-        anchor.children.append(model)
-
-        // Add the horizontal plane anchor to the scene
-        arView.scene.anchors.append(anchor)
-
+        let arView = ARCubeView(frame: .zero, cameraMode: ARView.CameraMode.nonAR, automaticallyConfigureSession: false)
+        arView.setup()
+        arView.cubeState = cubeState
         return arView
-        
     }
     
-    func updateUIView(_ uiView: ARView, context: Context) {}
+    func updateUIView(_ uiView: ARView, context: Context) {
+    }
     
 }
 
